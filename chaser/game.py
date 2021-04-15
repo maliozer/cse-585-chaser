@@ -1,6 +1,192 @@
-import pygame
-from .constants import RED, WHITE, BLUE, SQUARE_SIZE
+import pygame as pg
 
-class Game:
+import random
+import time
+import os
+
+from chaser.config import *
+from chaser.sprites import  *
+
+
+
+class Game():
     def __init__(self):
-        self._init()
+        os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (1800, 1200)
+        self.screen = pg.display.set_mode((WIDTH, HEIGHT))
+
+        self.clock = pg.time.Clock()
+
+        self.is_map_possible = False
+        self.map_checktrace = set()
+
+        self.gameloop()
+
+    def reset(self):
+        self.map_checktrace.clear()
+        self.is_map_possible = False
+
+    def gameloop(self):
+        n = 31
+
+        is_map_possible4c1 = False
+        is_map_possible4c2 = False
+
+        while(is_map_possible4c1 == False or is_map_possible4c2 == False):
+            print("not valid")
+            self.reset()
+            n = n -1
+            pg.init()
+            pg.display.set_caption('cheet-ai-h | GameScreen')
+            self.new(block=n)
+
+            self.map_checker(self.player.x, self.player.y, self.chaser1.x, self.chaser1.y)
+            is_map_possible4c1 = self.is_map_possible
+            self.reset()
+
+            self.map_checker(self.player.x, self.player.y, self.chaser2.x, self.chaser2.y)
+            is_map_possible4c2 = self.is_map_possible
+            print(is_map_possible4c1, is_map_possible4c2)
+
+        self.run()
+
+    def run(self):
+        # game loop - set self.playing = False to end the game
+        self.playing = True
+        while self.playing:
+            self.dt = self.clock.tick(FPS)
+            self.events()
+            self.update()
+            self.draw()
+
+    def new(self, block):
+        # initialize all variables and do all the setup for a new game
+        self.all_sprites = pg.sprite.Group()
+        self.walls = pg.sprite.Group()
+        obj_set = set()
+
+        self.player = Player(self, 0, 3)
+        self.chaser1 = Player(self, random.randint(7,12), random.randint(0,4), RED)
+        self.chaser2 = Player(self, random.randint(1, 6), random.randint(4, 7), GREEN)
+
+        obj_set.add((self.player.x,self.player.y))
+        obj_set.add((self.chaser1.x, self.chaser1.y))
+        obj_set.add((self.chaser2.x, self.chaser2.y))
+        for x in range(block):
+            while(True):
+                rnd_x = random.randint(0,12)
+                rnd_y = random.randint(0,7)
+                next_wall_pos = (rnd_x, rnd_y)
+                if(next_wall_pos not in obj_set):
+                    Wall(self, rnd_x, rnd_y)
+                    obj_set.add((rnd_x,rnd_y))
+                    break
+
+    def is_collide(self,x1,y1, obj):
+        x2 = obj.x
+        y2 = obj.y
+        if(abs(x1-x2) + abs(y1-y2) == 0):
+            return True
+        else:
+            return False
+
+    def vision_x(self, player, wall):
+        x1 = player.x
+        x2 = wall.x
+        y1 = player.y
+        y2 = wall.y
+        return (y1 - y2)
+
+    def vision_y(self, player, wall):
+        x1 = player.x
+        x2 = wall.x
+        y1 = player.y
+        y2 = wall.y
+        return (x1 - x2)
+    def collision_detection(self, player, dx, dy):
+        c_x = player.x + dx
+        c_y = player.y + dy
+
+        for o_wall in self.walls.sprites():
+            v_x = self.vision_x(player, o_wall)
+            v_y = self.vision_y(player, o_wall)
+
+            flag = (abs(c_x - o_wall.x) + abs(c_y - o_wall.y) == 0)
+
+            if flag is True:
+                #print("Collision detected!!", o_wall.x, o_wall.y)
+                return flag
+
+        return flag
+
+    def events(self):
+        # catch all events here
+        for event in pg.event.get():
+            if event.type == pg.QUIT:
+                self.playing = False
+            if event.type == pg.KEYDOWN:
+                if event.key == pg.K_ESCAPE:
+                    self.playing = False
+                if event.key == pg.K_LEFT:
+                    if not self.collision_detection(self.player, dx=-1, dy=0):
+                        self.player.move(dx=-1)
+                if event.key == pg.K_RIGHT:
+                    if not self.collision_detection(self.player, dx=1, dy=0):
+                        self.player.move(dx=1)
+                if event.key == pg.K_UP:
+                    if not self.collision_detection(self.player, dx=0, dy=-1):
+                        self.player.move(dy=-1)
+                if event.key == pg.K_DOWN:
+                    if not self.collision_detection(self.player, dx=0, dy=1):
+                        self.player.move(dy=1)
+
+    def update(self):
+        # update portion of the game loop
+        self.all_sprites.update()
+
+    def draw(self):
+        #fill background
+        self.screen.fill(BGCOLOR)
+        for x in range(0, WIDTH, TILESIZE):
+            pg.draw.line(self.screen, LIGHTGREY, (x, 0), (x, HEIGHT))
+        for y in range(0, HEIGHT, TILESIZE):
+            pg.draw.line(self.screen, LIGHTGREY, (0, y), (WIDTH, y))
+
+        self.all_sprites.draw(self.screen)
+        pg.display.flip()
+
+
+    def manhattan_distance2(self, x1, y1, x2, y2):
+        return abs(x1-x2) + abs(y1-y2)
+
+    def map_checker(self, px,py, cx,cy):
+        if(self.is_map_possible is not True):
+            class CPos():
+                def __init__(self,x,y):
+                    self.x = x
+                    self.y = y
+            current_pos = CPos(cx,cy)
+            trace = (current_pos.x, current_pos.y)
+            self.map_checktrace.add(trace)
+            target_distance = self.manhattan_distance2(px, py, cx, cy)
+            if target_distance == 1:
+                self.is_map_possible = True
+                return
+
+            if(current_pos.x > 0 and (trace[0] -1, trace[1]) not in self.map_checktrace and self.is_map_possible is not True):
+                if not self.collision_detection(current_pos, dx=-1, dy=0):
+                    self.map_checker(px, py,current_pos.x-1, current_pos.y)
+
+            if(current_pos.x < 13 and (trace[0]+1, trace[1]) not in self.map_checktrace and self.is_map_possible is not True):
+                if not self.collision_detection(current_pos, dx=1, dy=0):
+                    self.map_checker(px, py,current_pos.x+1, current_pos.y)
+
+            if(current_pos.y > 0 and (trace[0], trace[1]-1) not in self.map_checktrace and self.is_map_possible is not True):
+                if not self.collision_detection(current_pos, dx=0, dy=-1):
+                    self.map_checker(px, py,current_pos.x, current_pos.y-1)
+
+            if(current_pos.y < 13 and (trace[0], trace[1]+1) not in self.map_checktrace and self.is_map_possible is not True):
+                if not self.collision_detection(current_pos, dx=0, dy=1):
+                    self.map_checker(px, py, current_pos.x, current_pos.y+1)
+            return
+
+
