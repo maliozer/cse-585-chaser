@@ -3,7 +3,7 @@ import pygame as pg
 import random
 import time
 import os
-from tqdm import *
+
 from chaser.config import *
 from chaser.sprites import  *
 
