@@ -2,7 +2,7 @@ import pygame as pg
 from chaser.config import *
 
 class Player(pg.sprite.Sprite):
-    def __init__(self, game, x, y, color=BLUE):
+    def __init__(self, game, x, y, color=GREEN):
         self.groups = game.all_sprites
         pg.sprite.Sprite.__init__(self, self.groups)
         self.game = game

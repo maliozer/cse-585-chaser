@@ -3,7 +3,7 @@ import pygame as pg
 import random
 import time
 import os
-
+from tqdm import *
 from chaser.config import *
 from chaser.sprites import  *
 
@@ -16,37 +16,35 @@ class Game():
 
         self.clock = pg.time.Clock()
 
-        self.is_map_possible = False
+        self.is_map_possible4c1 = False
+        self.is_map_possible4c2 = False
+
         self.map_checktrace = set()
 
         self.gameloop()
 
     def reset(self):
         self.map_checktrace.clear()
-        self.is_map_possible = False
+
 
     def gameloop(self):
-        n = 31
+        n = 30
 
-        is_map_possible4c1 = False
-        is_map_possible4c2 = False
-
-        while(is_map_possible4c1 == False or is_map_possible4c2 == False):
-            print("not valid")
-            self.reset()
+        while(self.is_map_possible4c1 == False or self.is_map_possible4c2 == False):
+            self.is_map_possible4c1 = False
+            self.is_map_possible4c2 = False
             n = n -1
             pg.init()
             pg.display.set_caption('cheet-ai-h | GameScreen')
             self.new(block=n)
 
-            self.map_checker(self.player.x, self.player.y, self.chaser1.x, self.chaser1.y)
-            is_map_possible4c1 = self.is_map_possible
+            self.map_checker(self.player.x, self.player.y, self.chaser1.x, self.chaser1.y, test4 = 1)
             self.reset()
 
-            self.map_checker(self.player.x, self.player.y, self.chaser2.x, self.chaser2.y)
-            is_map_possible4c2 = self.is_map_possible
-            print(is_map_possible4c1, is_map_possible4c2)
+            self.map_checker(self.player.x, self.player.y, self.chaser2.x, self.chaser2.y, test4 = 2)
+            self.reset()
 
+            #print(self.is_map_possible4c1, self.is_map_possible4c2)
         self.run()
 
     def run(self):
@@ -66,13 +64,13 @@ class Game():
 
         self.player = Player(self, 0, 3)
         self.chaser1 = Player(self, random.randint(7,12), random.randint(0,4), RED)
-        self.chaser2 = Player(self, random.randint(1, 6), random.randint(4, 7), GREEN)
+        self.chaser2 = Player(self, random.randint(1, 6), random.randint(4, 7), BLUE)
 
         obj_set.add((self.player.x,self.player.y))
         obj_set.add((self.chaser1.x, self.chaser1.y))
         obj_set.add((self.chaser2.x, self.chaser2.y))
         for x in range(block):
-            while(True):
+            for trial in range(10):
                 rnd_x = random.randint(0,12)
                 rnd_y = random.randint(0,7)
                 next_wall_pos = (rnd_x, rnd_y)
@@ -158,8 +156,13 @@ class Game():
     def manhattan_distance2(self, x1, y1, x2, y2):
         return abs(x1-x2) + abs(y1-y2)
 
-    def map_checker(self, px,py, cx,cy):
-        if(self.is_map_possible is not True):
+    def map_checker(self, px,py, cx,cy, test4):
+        if(test4 == 1):
+            who = self.is_map_possible4c1
+        else:
+            who = self.is_map_possible4c2
+
+        if(who is not True):
             class CPos():
                 def __init__(self,x,y):
                     self.x = x
@@ -169,24 +172,28 @@ class Game():
             self.map_checktrace.add(trace)
             target_distance = self.manhattan_distance2(px, py, cx, cy)
             if target_distance == 1:
-                self.is_map_possible = True
+                if test4 == 1:
+                    self.is_map_possible4c1 = True
+                else:
+                    self.is_map_possible4c2 = True
                 return
 
-            if(current_pos.x > 0 and (trace[0] -1, trace[1]) not in self.map_checktrace and self.is_map_possible is not True):
+            #print(test4, ": --> ", cx, cy)
+            if(current_pos.x > 1 and (trace[0] -1, trace[1]) not in self.map_checktrace and who is not True):
                 if not self.collision_detection(current_pos, dx=-1, dy=0):
-                    self.map_checker(px, py,current_pos.x-1, current_pos.y)
+                    self.map_checker(px, py,current_pos.x-1, current_pos.y, test4)
 
-            if(current_pos.x < 13 and (trace[0]+1, trace[1]) not in self.map_checktrace and self.is_map_possible is not True):
+            if(current_pos.x < 12 and (trace[0]+1, trace[1]) not in self.map_checktrace and who is not True):
                 if not self.collision_detection(current_pos, dx=1, dy=0):
-                    self.map_checker(px, py,current_pos.x+1, current_pos.y)
+                    self.map_checker(px, py,current_pos.x+1, current_pos.y, test4)
 
-            if(current_pos.y > 0 and (trace[0], trace[1]-1) not in self.map_checktrace and self.is_map_possible is not True):
+            if(current_pos.y > 1 and (trace[0], trace[1]-1) not in self.map_checktrace and who is not True):
                 if not self.collision_detection(current_pos, dx=0, dy=-1):
-                    self.map_checker(px, py,current_pos.x, current_pos.y-1)
+                    self.map_checker(px, py,current_pos.x, current_pos.y-1, test4)
 
-            if(current_pos.y < 13 and (trace[0], trace[1]+1) not in self.map_checktrace and self.is_map_possible is not True):
+            if(current_pos.y < 7 and (trace[0], trace[1]+1) not in self.map_checktrace and who is not True):
                 if not self.collision_detection(current_pos, dx=0, dy=1):
-                    self.map_checker(px, py, current_pos.x, current_pos.y+1)
+                    self.map_checker(px, py, current_pos.x, current_pos.y+1, test4)
             return
 
 
