@@ -21,6 +21,9 @@ class Game():
 
         self.map_checktrace = set()
 
+        #runner, chaser1, chaser2
+        self.turn = [1, 0, 0]
+
         self.gameloop()
 
     def reset(self):
@@ -52,7 +55,10 @@ class Game():
         self.playing = True
         while self.playing:
             self.dt = self.clock.tick(FPS)
-            self.events()
+
+            movement = input()
+            self.events(movement)
+
             self.update()
             self.draw()
 
@@ -116,26 +122,53 @@ class Game():
 
         return flag
 
-    def events(self):
+    def get_turn(self):
         # catch all events here
+        which_agent = self.turn.index(max(self.turn))
+        print(which_agent)
+        if(which_agent == 0):
+            agent = self.player
+        elif(which_agent == 1):
+            agent = self.chaser1
+        elif(which_agent == 2):
+            agent = self.chaser2
+        return agent
+
+    def set_turn(self):
+        which_agent = self.turn.index(max(self.turn))
+        if(which_agent == 0):
+            self.turn = [0, 1, 0]
+        elif(which_agent == 1):
+            self.turn = [0, 0, 1]
+        elif(which_agent == 2):
+            self.turn = [1, 0, 0]
+
+    def events(self, movement):
+        agent = self.get_turn()
         for event in pg.event.get():
             if event.type == pg.QUIT:
                 self.playing = False
-            if event.type == pg.KEYDOWN:
-                if event.key == pg.K_ESCAPE:
-                    self.playing = False
-                if event.key == pg.K_LEFT:
-                    if not self.collision_detection(self.player, dx=-1, dy=0):
-                        self.player.move(dx=-1)
-                if event.key == pg.K_RIGHT:
-                    if not self.collision_detection(self.player, dx=1, dy=0):
-                        self.player.move(dx=1)
-                if event.key == pg.K_UP:
-                    if not self.collision_detection(self.player, dx=0, dy=-1):
-                        self.player.move(dy=-1)
-                if event.key == pg.K_DOWN:
-                    if not self.collision_detection(self.player, dx=0, dy=1):
-                        self.player.move(dy=1)
+                
+               
+            #if event.type == pg.KEYDOWN:
+            #    if event.key == pg.K_ESCAPE:
+            #        self.playing = False
+                    
+        if movement is not None:
+            if movement == 'A':
+                if not self.collision_detection(agent, dx=-1, dy=0):
+                    agent.move(dx=-1)
+            if movement == 'D':
+                if not self.collision_detection(agent, dx=1, dy=0):
+                    agent.move(dx=1)
+            if movement == 'W':
+                if not self.collision_detection(agent, dx=0, dy=-1):
+                    agent.move(dy=-1)
+            if movement == 'S':
+                if not self.collision_detection(agent, dx=0, dy=1):
+                    agent.move(dy=1)
+            self.set_turn()
+
 
     def update(self):
         # update portion of the game loop
