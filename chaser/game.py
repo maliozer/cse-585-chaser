@@ -3,14 +3,16 @@ import pygame as pg
 import random
 import time
 import os
+import numpy as np
 
 from chaser.config import *
-from chaser.sprites import  *
-
-
+from chaser.sprites import *
+from chaser.graph import *
+from chaser.brain import *
 
 class Game():
-    def __init__(self):
+    def __init__(self, brain_c1):
+        self.brain_c1 = brain_c1
         os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (1800, 1200)
         self.screen = pg.display.set_mode((WIDTH, HEIGHT))
 
@@ -23,7 +25,9 @@ class Game():
 
         #runner, chaser1, chaser2
         self.turn = [1, 0, 0]
+        self.number_of_turn = 0
 
+        self.graph = Graph()
         self.gameloop()
 
     def reset(self):
@@ -31,15 +35,14 @@ class Game():
 
 
     def gameloop(self):
-        n = 30
-
+        self.blocksize = random.randint(0,1)
         while(self.is_map_possible4c1 == False or self.is_map_possible4c2 == False):
             self.is_map_possible4c1 = False
             self.is_map_possible4c2 = False
-            n = n -1
+            #n = n -1
             pg.init()
             pg.display.set_caption('cheet-ai-h | GameScreen')
-            self.new(block=n)
+            self.new(block=self.blocksize)
 
             self.map_checker(self.player.x, self.player.y, self.chaser1.x, self.chaser1.y, test4 = 1)
             self.reset()
@@ -49,6 +52,7 @@ class Game():
 
             #print(self.is_map_possible4c1, self.is_map_possible4c2)
         self.run()
+        #print("Game Over!")
 
     def run(self):
         # game loop - set self.playing = False to end the game
@@ -56,11 +60,61 @@ class Game():
         while self.playing:
             self.dt = self.clock.tick(FPS)
 
-            movement = input()
-            self.events(movement)
 
+            X_in, Y_tar = self.get_features()
+            self.events(self.get_turn().decision(X_in, Y_tar))
             self.update()
             self.draw()
+
+    def get_features(self):
+        distance_signal = self.manhattan_distance2(self.player.x, self.player.y, self.chaser1.x, self.chaser1.y)
+
+        if self.player.x > self.chaser1.x:
+            is_right = 1
+            is_left = 0
+            horizontal_distance = self.player.x - self.chaser1.x
+
+        elif self.player.x < self.chaser1.x:
+            is_left = 1
+            is_right = 0
+            horizontal_distance = self.chaser1.x - self.player.x
+
+        else:
+            is_left = 0
+            is_right = 0
+            horizontal_distance = 0
+
+        if self.player.y > self.chaser1.y:
+            is_up = 0
+            is_down = 1
+            vertical_distance = self.player.y - self.chaser1.y
+
+        elif self.player.y < self.chaser1.y:
+            is_down = 0
+            is_up = 1
+            vertical_distance = self.chaser1.y - self.player.y
+
+        else:
+            is_down = 0
+            is_up = 0
+            vertical_distance = 0
+
+        if (is_up or is_down) and (is_left or is_right):
+            if(vertical_distance < horizontal_distance):
+                target_dec = [0, is_right, 0, is_left]
+            else:
+                target_dec = [is_up, 0, is_down, 0]
+        else:
+            target_dec = [is_up, is_right, is_down, is_left]
+
+        y_target = np.array(target_dec)
+
+        X_inputs = np.array([distance_signal, is_up, is_right, is_down, is_left])
+        X_inputs = X_inputs.reshape(1, 5)
+        y_target = y_target.reshape(1,4)
+
+        return X_inputs, y_target
+
 
     def new(self, block):
         # initialize all variables and do all the setup for a new game
@@ -68,9 +122,21 @@ class Game():
         self.walls = pg.sprite.Group()
         obj_set = set()
 
-        self.player = Player(self, 0, 3)
-        self.chaser1 = Player(self, random.randint(7,12), random.randint(0,4), RED)
-        self.chaser2 = Player(self, random.randint(1, 6), random.randint(4, 7), BLUE)
+        for y in range(8):
+            Wall(self, -1, y)
+            Wall(self, 13, y)
+            obj_set.add((-1, y))
+            obj_set.add((13, y))
+
+        for x in range(13):
+            Wall(self, x, -1)
+            Wall(self, x, 8)
+            obj_set.add((x, -1))
+            obj_set.add((x, 8))
+
+        self.player = Player(self, 0, random.randint(0,7), is_free = True, can_move=True)
+        self.chaser1 = Player(self, random.randint(11,12), random.randint(0,7), RED,brain = self.brain_c1)
+        self.chaser2 = Player(self, random.randint(11, 12), random.randint(0, 7), BLUE)
 
         obj_set.add((self.player.x,self.player.y))
         obj_set.add((self.chaser1.x, self.chaser1.y))
@@ -125,7 +191,7 @@ class Game():
     def get_turn(self):
         # catch all events here
         which_agent = self.turn.index(max(self.turn))
-        print(which_agent)
+        #print(which_agent)
         if(which_agent == 0):
             agent = self.player
         elif(which_agent == 1):
@@ -167,8 +233,20 @@ class Game():
             if movement == 'S':
                 if not self.collision_detection(agent, dx=0, dy=1):
                     agent.move(dy=1)
-            self.set_turn()
+        self.set_turn()
+        self.number_of_turn += 1
 
+        x1=self.player.x
+        y1=self.player.y
+        x2=self.chaser1.x
+        y2=self.chaser1.y
+
+        zx2=self.chaser2.x
+        zy2=self.chaser2.y
+
+        if(self.manhattan_distance2(x1,y1,x2,y2) == 0 or self.manhattan_distance2(x1, y1, zx2, zy2) == 0):
+            #print("Score for chaser!", self.number_of_turn)
+            self.playing = False
 
     def update(self):
         # update portion of the game loop
