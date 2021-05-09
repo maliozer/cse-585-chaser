@@ -12,7 +12,6 @@ class Player(pg.sprite.Sprite):
             self.brain = None
         else:
             self.brain = brain
-            #self.brain = brain.Brain()
 
         self.can_move = can_move
         self.groups = game.all_sprites
@@ -32,18 +31,16 @@ class Player(pg.sprite.Sprite):
         self.rect.x = self.x * TILESIZE
         self.rect.y = self.y * TILESIZE
 
-    def decision(self, X_inputs, Y_target):
+    def decision(self, X_inputs, reward):
         if self.can_move==True:
             if self.brain == None:
-                d = random.randint(0, 3)
+                d = random.randint(0, 4)
 
             else:
-                d = self.brain.get_decision(X_inputs,Y_target)
-                #print("Chaser1 Decided to go : ", d)
-                #self.brain.update_weights()
-
-            direction = {0: 'W', 1: 'D', 2: 'S', 3: 'A'}
-            return direction[d]
+                #will be changed with model output
+                d = random.randint(0, 3) #exclude stay
+            direction = {0: 'W', 1: 'D', 2: 'S', 3: 'A', 4:None}
+            return direction[d], d
         else:
             return None
 
