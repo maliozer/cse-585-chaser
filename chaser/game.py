@@ -4,6 +4,7 @@ import random
 import time
 import os
 import numpy as np
+import pandas as pd
 
 from chaser.config import *
 from chaser.sprites import *
@@ -14,6 +15,10 @@ class Game():
     def __init__(self):
         os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (1800, 1200)
         self.screen = pg.display.set_mode((WIDTH, HEIGHT))
+
+        self.runner_track = np.zeros(15)
+        self.ch1_track = np.zeros(15)
+        self.ch2_track = np.zeros(15)
 
         self.clock = pg.time.Clock()
 
@@ -27,8 +32,11 @@ class Game():
         self.turn = [1, 0, 0]
         self.number_of_turn = 0
 
+
         self.graph = Graph()
         self.gameloop()
+
+
 
     def reset(self):
         self.map_checktrace.clear()
@@ -261,7 +269,16 @@ class Game():
             #if event.type == pg.KEYDOWN:
             #    if event.key == pg.K_ESCAPE:
             #        self.playing = False
-                    
+
+        x,_ = self.get_features()
+
+        if np.argmax(self.turn) == 0:
+            self.runner_track = np.vstack([self.runner_track, x[0]]).astype(int)
+        elif np.argmax(self.turn) == 1:
+            self.ch1_track = np.vstack([self.ch1_track, x[0]]).astype(int)
+        elif np.argmax(self.turn) == 2:
+            self.ch2_track = np.vstack([self.ch2_track, x[0]]).astype(int)
+
         if movement is not None:
             if movement == 'A':
                 if not self.collision_detection(agent, dx=-1, dy=0):
@@ -275,9 +292,16 @@ class Game():
             if movement == 'S':
                 if not self.collision_detection(agent, dx=0, dy=1):
                     agent.move(dy=1)
+
+
+        print(np.argmax(self.turn),"-->", x[0], movement,direction_key,)
+
         self.set_turn()
         self.number_of_turn += 1
 
+    def update(self):
+        # update portion of the game loop
+        self.all_sprites.update()
         x1=self.player.x
         y1=self.player.y
         x2=self.chaser1.x
@@ -285,18 +309,9 @@ class Game():
 
         zx2=self.chaser2.x
         zy2=self.chaser2.y
-
-        x,_ = self.get_features()
-
-        print(np.argmax(self.turn),"-->", x[0], movement,direction_key,)
         if(self.manhattan_distance2(x1,y1,x2,y2) == 0 or self.manhattan_distance2(x1, y1, zx2, zy2) == 0):
-            #print("Score for chaser!", self.number_of_turn)
-            #here
+            print("Score for chaser!", self.number_of_turn)
             self.playing = False
-
-    def update(self):
-        # update portion of the game loop
-        self.all_sprites.update()
 
     def draw(self):
         #fill background
