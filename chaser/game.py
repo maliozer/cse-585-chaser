@@ -12,13 +12,18 @@ from chaser.graph import *
 from chaser.brain import *
 
 class Game():
-    def __init__(self):
+    def __init__(self, simulation_id, game_no):
+        self.simulation_id=str(simulation_id)
+        self.game_no = str(game_no)
         os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (1800, 1200)
         self.screen = pg.display.set_mode((WIDTH, HEIGHT))
 
-        self.runner_track = np.zeros(15)
-        self.ch1_track = np.zeros(15)
-        self.ch2_track = np.zeros(15)
+        self.runner_track = np.zeros(15).astype(int)
+        self.ch1_track = np.zeros(15).astype(int)
+        self.ch2_track = np.zeros(15).astype(int)
+        self.runner_move_track = np.zeros(1).astype(int)
+        self.ch1_move_track = np.zeros(1).astype(int)
+        self.ch2_move_track = np.zeros(1).astype(int)
 
         self.clock = pg.time.Clock()
 
@@ -30,6 +35,7 @@ class Game():
 
         #runner, chaser1, chaser2
         self.turn = [1, 0, 0]
+        self.winner = 0
         self.number_of_turn = 0
 
 
@@ -43,13 +49,13 @@ class Game():
 
 
     def gameloop(self):
-        self.blocksize = random.randint(15,25)
+        self.blocksize = random.randint(15,30)
         while(self.is_map_possible4c1 == False or self.is_map_possible4c2 == False):
             self.is_map_possible4c1 = False
             self.is_map_possible4c2 = False
             #n = n -1
             pg.init()
-            pg.display.set_caption('cheet-ai-h | GameScreen')
+            pg.display.set_caption('Simulation' + self.simulation_id + ' | Game ' + self.game_no)
             self.new(block=self.blocksize)
 
             self.map_checker(self.player.x, self.player.y, self.chaser1.x, self.chaser1.y, test4 = 1)
@@ -133,22 +139,28 @@ class Game():
         #nw, n, ne, w , e, sw, s, se
         vision_list = [1,1,1,1,1,1,1,1]
 
-        if ((agent.x-1, agent.y-1) in self.wall_coordinates):
-            vision_list[0] = 0 #nw
-        if ((agent.x, agent.y-1) in self.wall_coordinates):
-            vision_list[1] = 0 #n
-        if ((agent.x+1, agent.y-1) in self.wall_coordinates):
-            vision_list[2] = 0 #ne
-        if ((agent.x-1, agent.y) in self.wall_coordinates):
-            vision_list[3] = 0 #w
-        if ((agent.x+1, agent.y) in self.wall_coordinates):
-            vision_list[4] = 0 #e
-        if ((agent.x-1, agent.y+1) in self.wall_coordinates):
-            vision_list[5] = 0 #sw
-        if ((agent.x, agent.y+1) in self.wall_coordinates):
-            vision_list[6] = 0 #s
-        if ((agent.x+1, agent.y+1) in self.wall_coordinates):
-            vision_list[7] = 0 #se
+        ch_loc = [(self.chaser1.x, self.chaser1.y),(self.chaser2.x, self.chaser2.y)]
+        runner_loc = (self.player.x, self.player.y)
+
+        vision_loc = [(agent.x-1, agent.y-1), (agent.x, agent.y-1), (agent.x+1, agent.y-1), (agent.x-1, agent.y), (agent.x+1, agent.y), (agent.x-1, agent.y+1), (agent.x, agent.y+1), (agent.x+1, agent.y+1)]
+
+        for index, loc in enumerate(vision_loc):
+            if loc in self.wall_coordinates:
+                vision_list[index] = 0
+            else:
+                if player_no == 0:
+                    for chaser_pos_t1 in ch_loc:
+                        if loc == chaser_pos_t1:
+                            vision_list[index] += 9
+
+                elif player_no == 1 or player_no == 2:
+                    if loc == runner_loc:
+                        vision_list[index] += 9
+
+                    else:
+                        for chaser_pos_t2 in ch_loc:
+                            if loc == chaser_pos_t2:
+                                vision_list[index] -= 11
 
         for v in vision_list: input_list.append(v)
 
@@ -221,6 +233,7 @@ class Game():
         y1 = player.y
         y2 = wall.y
         return (x1 - x2)
+
     def collision_detection(self, player, dx, dy):
         c_x = player.x + dx
         c_y = player.y + dy
@@ -232,7 +245,7 @@ class Game():
             flag = (abs(c_x - o_wall.x) + abs(c_y - o_wall.y) == 0)
 
             if flag is True:
-                #print("Collision detected!!", o_wall.x, o_wall.y)
+                # print("Collision detected!!", o_wall.x, o_wall.y)
                 return flag
 
         return flag
@@ -266,18 +279,21 @@ class Game():
             if event.type == pg.QUIT:
                 self.playing = False
 
-            #if event.type == pg.KEYDOWN:
+            # if event.type == pg.KEYDOWN:
             #    if event.key == pg.K_ESCAPE:
             #        self.playing = False
 
         x,_ = self.get_features()
 
         if np.argmax(self.turn) == 0:
-            self.runner_track = np.vstack([self.runner_track, x[0]]).astype(int)
+            self.runner_track = np.vstack([self.runner_track, x[0]])
+            self.runner_move_track = np.append(self.runner_move_track, direction_key)
         elif np.argmax(self.turn) == 1:
-            self.ch1_track = np.vstack([self.ch1_track, x[0]]).astype(int)
+            self.ch1_track = np.vstack([self.ch1_track, x[0]])
+            self.ch1_move_track = np.append(self.ch1_move_track, direction_key)
         elif np.argmax(self.turn) == 2:
-            self.ch2_track = np.vstack([self.ch2_track, x[0]]).astype(int)
+            self.ch2_track = np.vstack([self.ch2_track, x[0]])
+            self.ch2_move_track = np.append(self.ch2_move_track, direction_key)
 
         if movement is not None:
             if movement == 'A':
@@ -293,9 +309,8 @@ class Game():
                 if not self.collision_detection(agent, dx=0, dy=1):
                     agent.move(dy=1)
 
-
-        print(np.argmax(self.turn),"-->", x[0], movement,direction_key,)
-
+        # feature debug
+        # print(np.argmax(self.turn),"-->", x[0], movement,direction_key)
         self.set_turn()
         self.number_of_turn += 1
 
@@ -309,12 +324,17 @@ class Game():
 
         zx2=self.chaser2.x
         zy2=self.chaser2.y
-        if(self.manhattan_distance2(x1,y1,x2,y2) == 0 or self.manhattan_distance2(x1, y1, zx2, zy2) == 0):
-            print("Score for chaser!", self.number_of_turn)
+        if(self.manhattan_distance2(x1,y1,x2,y2) == 0):
+            self.winner = 1
             self.playing = False
+            # print("Collision with chaser1 ", self.number_of_turn, self.winner)
+        elif(self.manhattan_distance2(x1, y1, zx2, zy2) == 0):
+            self.winner = 2
+            self.playing = False
+            # print("Collision with chaser2 ", self.number_of_turn, self.winner)
 
     def draw(self):
-        #fill background
+        # fill background
         self.screen.fill(BGCOLOR)
         for x in range(0, WIDTH, TILESIZE):
             pg.draw.line(self.screen, LIGHTGREY, (x, 0), (x, HEIGHT))
@@ -323,7 +343,6 @@ class Game():
 
         self.all_sprites.draw(self.screen)
         pg.display.flip()
-
 
     def manhattan_distance2(self, x1, y1, x2, y2):
         return abs(x1-x2) + abs(y1-y2)
@@ -350,7 +369,7 @@ class Game():
                     self.is_map_possible4c2 = True
                 return
 
-            #print(test4, ": --> ", cx, cy)
+            # print(test4, ": --> ", cx, cy)
             if(current_pos.x > 1 and (trace[0] -1, trace[1]) not in self.map_checktrace and who is not True):
                 if not self.collision_detection(current_pos, dx=-1, dy=0):
                     self.map_checker(px, py,current_pos.x-1, current_pos.y, test4)

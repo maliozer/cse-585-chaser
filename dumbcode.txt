@@ -1,0 +1,33 @@
+if ((agent.x-1, agent.y-1) in self.wall_coordinates):
+    vision_list[0] = 0 #nw
+else:
+    if (player_no == 0):
+        if((agent.x-1, agent.y-1) == ):
+            vision_list[0] += 10
+        if((agent.x-1, agent.y-1) == ):
+            vision_list[0] += 10
+        #i am looking for is there a chaser in that location
+    elif (player_no == 1 or player_no == 2):
+        # i am looking for is there a runner in that location
+        pass
+
+if ((agent.x, agent.y-1) in self.wall_coordinates):
+    vision_list[1] = 0 #n
+if ((agent.x+1, agent.y-1) in self.wall_coordinates):
+    vision_list[2] = 0 #ne
+if ((agent.x-1, agent.y) in self.wall_coordinates):
+    vision_list[3] = 0 #w
+if ((agent.x+1, agent.y) in self.wall_coordinates):
+    vision_list[4] = 0 #e
+if ((agent.x-1, agent.y+1) in self.wall_coordinates):
+    vision_list[5] = 0 #sw
+if ((agent.x, agent.y+1) in self.wall_coordinates):
+    vision_list[6] = 0 #s
+if ((agent.x+1, agent.y+1) in self.wall_coordinates):
+    vision_list[7] = 0 #se
+
+
+# reward function
+def get_reward(turn, gamma):
+    for x in range(turn):
+        print("Turn: ", x,"Reward: ", int(100 - (x ** (gamma))))

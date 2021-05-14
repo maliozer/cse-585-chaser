@@ -1,37 +1,35 @@
-
 from chaser.game import Game
 
 from tqdm import tqdm, trange
+import sys
 
-import pandas as pd
-import numpy as np
-
-import os
-import pickle
-
-
-def save_data(game):
-    game.runner_track = np.delete(game.runner_track, 0, 0)
-    game.ch1_track = np.delete(game.ch1_track, 0, 0)
-    game.ch2_track = np.delete(game.ch2_track, 0, 0)
-
-    pd.DataFrame(game.runner_track).to_csv('./simulation/runner.csv', index=False)
-    pd.DataFrame(game.ch1_track).to_csv('./simulation/ch1.csv', index=False)
-    pd.DataFrame(game.ch2_track).to_csv('./simulation/ch2.csv', index=False)
-
+from chaser.postprocessor import Postprocessor
 
 if __name__ == '__main__':
-    game_records = list()
-    df_hist = pd.DataFrame()
-    df_hist.astype(object)
-    print(os.listdir())
-    for game_no in trange(1):
-        game = Game()
-        game_records.append((game_no, game.number_of_turn, game.blocksize))
 
-        save_data(game)
+    simulation_no = int(sys.argv[1])
+    print(simulation_no)
+    #game_records = list()
 
+    for game_no in trange(100):
+        game = Game(simulation_no, game_no)
+        #game_records.append((game_no, game.number_of_turn, game.blocksize))
 
+        try:
+            # start post process
+            simulation_process = Postprocessor(game, simulation_no)
+
+            # save agent track
+            simulation_process.save_data(game)
+
+            # distribute discounted reward
+            simulation_process.discounted_contribution(game)
+
+            # dump dictionary model
+            simulation_process.dump_pickle(is_runner=True)
+            simulation_process.dump_pickle(is_runner=False)
+        except:
+            print("ERROR - Err occured! on game: ", game_no)
 
 
     '''
